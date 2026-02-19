@@ -33,7 +33,9 @@ export default function RootLayout() {
     async function loadFonts() {
       try {
         await Font.loadAsync({
-          'ionicons': require('../assets/fonts/Ionicons.ttf'),
+          'ionicons': {
+            uri: 'https://unpkg.com/@expo/vector-icons@15.0.3/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf',
+          },
         });
       } catch (e) {
         console.warn('Font loading error:', e);
