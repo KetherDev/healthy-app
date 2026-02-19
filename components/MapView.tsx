@@ -1,5 +1,5 @@
-import { View, StyleSheet } from 'react-native';
-import RNMapView, { Marker, Callout } from 'react-native-maps';
+import { View, StyleSheet, Platform } from 'react-native';
+import RNMapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 interface MapPin {
   id: string;
@@ -26,7 +26,8 @@ export default function NativeMapView({ pins, center, zoom = 13, onPinPress, sty
   return (
     <View style={[styles.container, style]}>
       <RNMapView
-        style={StyleSheet.absoluteFillObject}
+        style={styles.map}
+        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
         initialRegion={{
           latitude: lat,
           longitude: lng,
@@ -35,6 +36,7 @@ export default function NativeMapView({ pins, center, zoom = 13, onPinPress, sty
         }}
         showsUserLocation
         showsMyLocationButton
+        mapType="standard"
       >
         {pins.map((pin) => (
           <Marker
@@ -53,5 +55,8 @@ export default function NativeMapView({ pins, center, zoom = 13, onPinPress, sty
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
   },
 });
