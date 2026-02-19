@@ -7,14 +7,18 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  TextInput,
+  Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { useEstablishment } from '@/hooks/useEstablishments';
 import { useClasses } from '@/hooks/useClasses';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useReviews, useHasBooked } from '@/hooks/useReviews';
 import { colors, spacing, radius, shadows } from '@/lib/theme';
 
 const AMENITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -36,8 +40,14 @@ export default function EstablishmentDetail() {
   const { establishment, loading } = useEstablishment(id!);
   const { classes, loading: classesLoading } = useClasses(id!);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { reviews, loading: reviewsLoading, userReview, submitReview, deleteReview } = useReviews(id!);
+  const { hasBooked } = useHasBooked(id!);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'classes' | 'info' | 'reviews'>('classes');
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   if (loading || !establishment) {
     return (
@@ -50,11 +60,52 @@ export default function EstablishmentDetail() {
   const favorited = isFavorite(establishment.id);
   const lowestPrice = classes.length > 0 ? Math.min(...classes.map(c => c.price)) / 100 : null;
 
-  const REVIEWS = [
-    { name: 'Maria G.', rating: 5, text: 'Amazing studio! The instructors are so welcoming and the space is beautiful.', time: '2 days ago' },
-    { name: 'David C.', rating: 4, text: 'Great classes, clean facility. Would love more evening slots though.', time: '1 week ago' },
-    { name: 'Emma W.', rating: 5, text: 'My favorite spot in the city. The atmosphere is perfect for wellness!', time: '2 weeks ago' },
-  ];
+  const handleSubmitReview = async () => {
+    if (!reviewComment.trim()) {
+      const msg = 'Please write a comment for your review.';
+      if (Platform.OS === 'web') { window.alert(msg); } else { Alert.alert('Missing Comment', msg); }
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitReview(reviewRating, reviewComment.trim());
+      setShowReviewForm(false);
+      setReviewComment('');
+      setReviewRating(5);
+    } catch (err: any) {
+      const msg = err.message || 'Failed to submit review';
+      if (Platform.OS === 'web') { window.alert(msg); } else { Alert.alert('Error', msg); }
+    }
+    setSubmitting(false);
+  };
+
+  const handleDeleteReview = async () => {
+    const doDelete = async () => {
+      try {
+        await deleteReview();
+      } catch (err: any) {
+        const msg = err.message || 'Failed to delete';
+        if (Platform.OS === 'web') { window.alert(msg); } else { Alert.alert('Error', msg); }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Delete your review?')) doDelete();
+    } else {
+      Alert.alert('Delete Review', 'Are you sure?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
+  };
+
+  const openEditReview = () => {
+    if (userReview) {
+      setReviewRating(userReview.rating);
+      setReviewComment(userReview.comment || '');
+    }
+    setShowReviewForm(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -221,30 +272,129 @@ export default function EstablishmentDetail() {
 
           {activeTab === 'reviews' && (
             <View style={styles.reviewsTab}>
-              {REVIEWS.map((review, i) => (
-                <View key={i} style={[styles.reviewCard, i < REVIEWS.length - 1 && styles.reviewBorder]}>
+              {hasBooked && !userReview && !showReviewForm && (
+                <TouchableOpacity style={styles.writeReviewBtn} onPress={() => setShowReviewForm(true)}>
+                  <Ionicons name="create-outline" size={16} color="#fff" />
+                  <Text style={styles.writeReviewBtnText}>Write a Review</Text>
+                </TouchableOpacity>
+              )}
+
+              {userReview && !showReviewForm && (
+                <View style={[styles.reviewCard, styles.userReviewCard]}>
                   <View style={styles.reviewHeader}>
-                    <View style={styles.reviewAvatar}>
-                      <Text style={styles.reviewAvatarText}>{review.name.charAt(0)}</Text>
+                    <View style={[styles.reviewAvatar, { backgroundColor: colors.primary }]}>
+                      <Text style={[styles.reviewAvatarText, { color: '#fff' }]}>
+                        {(userReview.profiles as any)?.full_name?.charAt(0) || 'Y'}
+                      </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.reviewName}>{review.name}</Text>
+                      <Text style={styles.reviewName}>
+                        {(userReview.profiles as any)?.full_name || 'You'}
+                        <Text style={styles.yourReviewBadge}> (Your review)</Text>
+                      </Text>
                       <View style={styles.reviewStarsRow}>
                         {[1, 2, 3, 4, 5].map((s) => (
-                          <Ionicons
-                            key={s}
-                            name="star"
-                            size={12}
-                            color={s <= review.rating ? colors.warning : colors.border}
-                          />
+                          <Ionicons key={s} name="star" size={12} color={s <= userReview.rating ? colors.warning : colors.border} />
                         ))}
-                        <Text style={styles.reviewTime}>{review.time}</Text>
+                        <Text style={styles.reviewTime}>
+                          {formatDistanceToNow(new Date(userReview.created_at), { addSuffix: true })}
+                        </Text>
                       </View>
                     </View>
                   </View>
-                  <Text style={styles.reviewText}>{review.text}</Text>
+                  {userReview.comment && <Text style={styles.reviewText}>{userReview.comment}</Text>}
+                  <View style={styles.reviewActions}>
+                    <TouchableOpacity style={styles.reviewActionBtn} onPress={openEditReview}>
+                      <Ionicons name="pencil-outline" size={14} color={colors.primary} />
+                      <Text style={styles.reviewActionText}>Edit</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.reviewActionBtn} onPress={handleDeleteReview}>
+                      <Ionicons name="trash-outline" size={14} color={colors.error} />
+                      <Text style={[styles.reviewActionText, { color: colors.error }]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              ))}
+              )}
+
+              {showReviewForm && (
+                <View style={styles.reviewFormCard}>
+                  <Text style={styles.reviewFormTitle}>
+                    {userReview ? 'Edit Your Review' : 'Write a Review'}
+                  </Text>
+                  <View style={styles.starPicker}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <TouchableOpacity key={s} onPress={() => setReviewRating(s)}>
+                        <Ionicons
+                          name="star"
+                          size={28}
+                          color={s <= reviewRating ? colors.warning : colors.border}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TextInput
+                    style={styles.reviewInput}
+                    placeholder="Share your experience..."
+                    placeholderTextColor={colors.textMuted}
+                    value={reviewComment}
+                    onChangeText={setReviewComment}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                  <View style={styles.reviewFormActions}>
+                    <TouchableOpacity
+                      style={styles.cancelBtn}
+                      onPress={() => { setShowReviewForm(false); setReviewComment(''); setReviewRating(5); }}
+                    >
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+                      onPress={handleSubmitReview}
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.submitBtnText}>{userReview ? 'Update' : 'Submit'}</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {reviewsLoading ? (
+                <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+              ) : reviews.filter(r => r.id !== userReview?.id).length === 0 && !userReview ? (
+                <Text style={styles.noReviewsText}>No reviews yet. {hasBooked ? 'Be the first to leave one!' : 'Book a class to leave a review.'}</Text>
+              ) : (
+                reviews.filter(r => r.id !== userReview?.id).map((review, i, arr) => (
+                  <View key={review.id} style={[styles.reviewCard, i < arr.length - 1 && styles.reviewBorder]}>
+                    <View style={styles.reviewHeader}>
+                      <View style={styles.reviewAvatar}>
+                        <Text style={styles.reviewAvatarText}>
+                          {(review.profiles as any)?.full_name?.charAt(0) || '?'}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reviewName}>
+                          {(review.profiles as any)?.full_name || 'Anonymous'}
+                        </Text>
+                        <View style={styles.reviewStarsRow}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Ionicons key={s} name="star" size={12} color={s <= review.rating ? colors.warning : colors.border} />
+                          ))}
+                          <Text style={styles.reviewTime}>
+                            {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                    {review.comment && <Text style={styles.reviewText}>{review.comment}</Text>}
+                  </View>
+                ))
+              )}
             </View>
           )}
         </View>
@@ -540,7 +690,116 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.textSecondary,
   },
-  reviewsTab: {},
+  reviewsTab: {
+    gap: 0,
+  },
+  writeReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    marginBottom: 20,
+  },
+  writeReviewBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  userReviewCard: {
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+  },
+  yourReviewBadge: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  reviewActions: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 12,
+  },
+  reviewActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reviewActionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  reviewFormCard: {
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  reviewFormTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  starPicker: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 13,
+    color: colors.text,
+    backgroundColor: '#fff',
+    minHeight: 80,
+    marginBottom: 12,
+  },
+  reviewFormActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  cancelBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  submitBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+  },
+  submitBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  noReviewsText: {
+    fontSize: 13,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
   reviewCard: {
     paddingBottom: 16,
     marginBottom: 16,

@@ -40,6 +40,7 @@ hooks/                  # Data hooks
   useAllClasses.ts      # Fetch upcoming classes for home screen
   useBookings.ts        # Manage bookings (create, cancel)
   useFavorites.ts       # Manage favorites (toggle, check)
+  useReviews.ts         # Manage reviews (create, update, delete, check booking)
 ```
 
 ## Design System
@@ -52,10 +53,13 @@ hooks/                  # Data hooks
 - Consistent shadows (sm/md/lg)
 
 ## Database Tables (Supabase)
-- profiles, establishments, classes, bookings, favorites
+- profiles, establishments, classes, bookings, favorites, reviews
 - All with RLS enabled
 - 8 establishments (SF area with lat/lng) and 26 classes seeded
 - Prices stored in cents (e.g., 2500 = $25.00)
+- Reviews: real user reviews with star ratings (1-5), one per user per establishment
+  - RLS enforces: only users with a booking can create reviews, users can only edit/delete their own
+  - Postgres trigger auto-updates establishment.rating and review_count on review changes
 
 ## Navigation Flow
 1. Auth screen (sign in/sign up with tab toggle)
