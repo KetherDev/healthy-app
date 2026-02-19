@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
@@ -8,6 +9,7 @@ import { colors, spacing, radius, typography, shadows } from '@/lib/theme';
 export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
   const { bookings } = useBookings();
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const upcoming = bookings.filter((b) => b.status === 'confirmed').length;
   const completed = bookings.filter((b) => b.status === 'completed').length;
@@ -16,10 +18,11 @@ export default function ProfileScreen() {
   const initial = (profile?.full_name || user?.email || '?')[0].toUpperCase();
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
-    ]);
+    if (showConfirm) {
+      signOut();
+    } else {
+      setShowConfirm(true);
+    }
   };
 
   const menuSections = [
@@ -100,8 +103,18 @@ export default function ProfileScreen() {
         ))}
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>
+            {showConfirm ? 'Tap again to confirm' : 'Sign Out'}
+          </Text>
         </TouchableOpacity>
+        {showConfirm && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setShowConfirm(false)}
+          >
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -209,5 +222,16 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontSize: 16,
     fontWeight: '600',
+  },
+  cancelButton: {
+    borderRadius: radius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  cancelText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
