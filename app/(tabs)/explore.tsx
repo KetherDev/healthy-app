@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,14 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '@/lib/supabase';
-import { colors, spacing, radius, shadows } from '@/lib/theme';
+import { colors, shadows } from '@/lib/theme';
 import { Establishment, EstablishmentType } from '@/lib/types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import MapView from '@/components/MapView';
 
 const CATEGORIES: { id: EstablishmentType | 'all'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'all', label: 'All', icon: 'sparkles' },
@@ -25,6 +23,8 @@ const CATEGORIES: { id: EstablishmentType | 'all'; label: string; icon: keyof ty
   { id: 'yoga', label: 'Yoga', icon: 'leaf-outline' },
   { id: 'restaurant', label: 'Food', icon: 'restaurant-outline' },
 ];
+
+const SF_CENTER = { latitude: 37.7749, longitude: -122.4194 };
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -72,44 +72,48 @@ export default function ExploreScreen() {
     }
   };
 
+  const mapPins = useMemo(() =>
+    results
+      .filter((p) => p.latitude && p.longitude)
+      .map((p) => ({
+        id: p.id,
+        latitude: p.latitude!,
+        longitude: p.longitude!,
+        label: `${p.price_range || '$'} ${p.name}`,
+        selected: selectedPin === p.id,
+      })),
+    [results, selectedPin]
+  );
+
+  const mapCenter = useMemo(() => {
+    if (selectedPlace?.latitude && selectedPlace?.longitude) {
+      return { latitude: selectedPlace.latitude, longitude: selectedPlace.longitude };
+    }
+    if (results.length > 0) {
+      const withCoords = results.filter((r) => r.latitude && r.longitude);
+      if (withCoords.length > 0) {
+        const avgLat = withCoords.reduce((s, r) => s + r.latitude!, 0) / withCoords.length;
+        const avgLng = withCoords.reduce((s, r) => s + r.longitude!, 0) / withCoords.length;
+        return { latitude: avgLat, longitude: avgLng };
+      }
+    }
+    return SF_CENTER;
+  }, [results, selectedPlace]);
+
+  const handlePinPress = (id: string) => {
+    setSelectedPin(selectedPin === id ? null : id);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.mapArea}>
-        <View style={styles.mapGrid}>
-          {results.map((place) => {
-            if (!place.latitude || !place.longitude) return null;
-            const normLat = ((place.latitude - 37.74) / 0.06) * 100;
-            const normLng = ((place.longitude + 122.5) / 0.1) * 100;
-            const isSelected = selectedPin === place.id;
-            return (
-              <TouchableOpacity
-                key={place.id}
-                style={[
-                  styles.mapPin,
-                  {
-                    left: `${Math.min(Math.max(normLng, 10), 85)}%` as any,
-                    top: `${Math.min(Math.max(100 - normLat, 10), 80)}%` as any,
-                  },
-                  isSelected && styles.mapPinSelected,
-                ]}
-                onPress={() => setSelectedPin(isSelected ? null : place.id)}
-              >
-                <View style={[styles.pinBubble, isSelected && styles.pinBubbleSelected]}>
-                  <Ionicons name={typeIcon(place.type)} size={12} color={isSelected ? '#fff' : colors.text} />
-                  <Text style={[styles.pinPrice, isSelected && styles.pinPriceSelected]}>
-                    {place.price_range || '$'}
-                  </Text>
-                </View>
-                <View style={[styles.pinArrow, isSelected && styles.pinArrowSelected]} />
-              </TouchableOpacity>
-            );
-          })}
-
-          <View style={styles.userDot}>
-            <View style={styles.userDotInner} />
-            <View style={styles.userDotPing} />
-          </View>
-        </View>
+        <MapView
+          pins={mapPins}
+          center={mapCenter}
+          zoom={13}
+          onPinPress={handlePinPress}
+          style={{ flex: 1 }}
+        />
 
         <SafeAreaView style={styles.searchOverlay} edges={['top']}>
           <View style={styles.searchRow}>
@@ -149,10 +153,6 @@ export default function ExploreScreen() {
             ))}
           </ScrollView>
         </SafeAreaView>
-
-        <TouchableOpacity style={styles.recenterButton}>
-          <Ionicons name="navigate" size={20} color={colors.info} />
-        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -225,80 +225,12 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  mapGrid: {
-    flex: 1,
-    position: 'relative',
-  },
-  mapPin: {
-    position: 'absolute',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  mapPinSelected: {
-    zIndex: 20,
-    transform: [{ scale: 1.15 }],
-  },
-  pinBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    ...shadows.md,
-  },
-  pinBubbleSelected: {
-    backgroundColor: colors.primary,
-  },
-  pinPrice: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  pinPriceSelected: {
-    color: '#fff',
-  },
-  pinArrow: {
-    width: 8,
-    height: 8,
-    backgroundColor: '#fff',
-    transform: [{ rotate: '45deg' }],
-    marginTop: -4,
-  },
-  pinArrowSelected: {
-    backgroundColor: colors.primary,
-  },
-  userDot: {
-    position: 'absolute',
-    left: '50%',
-    top: '50%',
-    zIndex: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userDotInner: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: colors.info,
-    borderWidth: 2,
-    borderColor: '#fff',
-    ...shadows.md,
-  },
-  userDotPing: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: 'rgba(59, 130, 246, 0.3)',
-  },
   searchOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 20,
+    zIndex: 1000,
     paddingHorizontal: 20,
     paddingTop: 8,
   },
@@ -360,19 +292,6 @@ const styles = StyleSheet.create({
   filterLabelActive: {
     color: '#fff',
   },
-  recenterButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...shadows.lg,
-    zIndex: 20,
-  },
   bottomCard: {
     position: 'absolute',
     bottom: 24,
@@ -384,7 +303,7 @@ const styles = StyleSheet.create({
     ...shadows.lg,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    zIndex: 30,
+    zIndex: 1000,
   },
   closePin: {
     position: 'absolute',
