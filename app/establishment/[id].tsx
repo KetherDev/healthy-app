@@ -165,8 +165,10 @@ export default function EstablishmentDetail() {
                   color={s <= Math.floor(establishment.rating || 0) ? colors.warning : colors.border}
                 />
               ))}
-              <Text style={styles.ratingNumber}>{establishment.rating?.toFixed(1)}</Text>
-              <Text style={styles.reviewCountText}>({establishment.review_count})</Text>
+              <Text style={styles.ratingNumber}>{establishment.review_count > 0 ? establishment.rating?.toFixed(1) : 'New'}</Text>
+              {establishment.review_count > 0 && (
+                <Text style={styles.reviewCountText}>({establishment.review_count})</Text>
+              )}
             </View>
             {establishment.city && (
               <View style={styles.locationRow}>
@@ -179,7 +181,7 @@ export default function EstablishmentDetail() {
           <View style={styles.quickInfoRow}>
             {[
               { icon: 'time-outline' as const, label: '6AM - 10PM' },
-              { icon: 'people-outline' as const, label: `${establishment.review_count} members` },
+              { icon: 'people-outline' as const, label: `${establishment.review_count} reviews` },
               { icon: 'location-outline' as const, label: establishment.city || 'Downtown' },
             ].map((item, i) => (
               <View key={i} style={styles.quickInfoItem}>

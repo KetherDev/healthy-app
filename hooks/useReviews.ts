@@ -11,7 +11,7 @@ export function useReviews(establishmentId: string) {
     setLoading(true);
     const { data, error } = await supabase
       .from('reviews')
-      .select('*, profiles:user_id(full_name, avatar_url)')
+      .select('*')
       .eq('establishment_id', establishmentId)
       .order('created_at', { ascending: false });
 
@@ -21,7 +21,26 @@ export function useReviews(establishmentId: string) {
       return;
     }
 
-    const reviewsList = (data as Review[]) ?? [];
+    const rawReviews = data ?? [];
+
+    const userIds = Array.from(new Set(rawReviews.map((r: any) => r.user_id)));
+    let profilesMap: Record<string, { full_name: string; avatar_url: string | null }> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds);
+      if (profiles) {
+        profiles.forEach((p: any) => {
+          profilesMap[p.id] = { full_name: p.full_name, avatar_url: p.avatar_url };
+        });
+      }
+    }
+
+    const reviewsList: Review[] = rawReviews.map((r: any) => ({
+      ...r,
+      profiles: profilesMap[r.user_id] || { full_name: 'User', avatar_url: null },
+    }));
     setReviews(reviewsList);
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();

@@ -147,8 +147,8 @@ export default function ExploreScreen() {
           <View style={styles.cardMeta}>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={12} color={colors.warning} />
-              <Text style={styles.ratingText}>{item.rating?.toFixed(1)}</Text>
-              <Text style={styles.reviewCount}>({item.review_count})</Text>
+              <Text style={styles.ratingText}>{item.review_count > 0 ? item.rating?.toFixed(1) : 'New'}</Text>
+              {item.review_count > 0 && <Text style={styles.reviewCount}>({item.review_count})</Text>}
             </View>
             <View style={styles.dotSeparator} />
             <View style={styles.locationRow}>

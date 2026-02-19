@@ -157,7 +157,7 @@ export default function HomeScreen() {
                     <Text style={styles.placeName} numberOfLines={1}>{place.name}</Text>
                     <View style={styles.placeMetaRow}>
                       <Ionicons name="star" size={12} color={colors.warning} />
-                      <Text style={styles.placeRating}>{place.rating?.toFixed(1)}</Text>
+                      <Text style={styles.placeRating}>{place.review_count > 0 ? place.rating?.toFixed(1) : 'New'}</Text>
                       <Text style={styles.placeDot}>&middot;</Text>
                       <Ionicons name="location-outline" size={12} color={colors.textTertiary} />
                       <Text style={styles.placeDistance}>{place.city || 'Nearby'}</Text>
