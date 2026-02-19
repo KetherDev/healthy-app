@@ -1,6 +1,5 @@
-import { View, StyleSheet, Text } from 'react-native';
-import RNMapView, { Marker } from 'react-native-maps';
-import { colors } from '@/lib/theme';
+import { View, StyleSheet } from 'react-native';
+import RNMapView, { Marker, Callout } from 'react-native-maps';
 
 interface MapPin {
   id: string;
@@ -25,26 +24,34 @@ export default function NativeMapView({ pins, center, zoom = 13, onPinPress, sty
   const delta = 0.05 * Math.pow(2, 13 - zoom);
 
   return (
-    <RNMapView
-      style={[{ flex: 1 }, style]}
-      initialRegion={{
-        latitude: lat,
-        longitude: lng,
-        latitudeDelta: delta,
-        longitudeDelta: delta,
-      }}
-      showsUserLocation
-      showsMyLocationButton
-    >
-      {pins.map((pin) => (
-        <Marker
-          key={pin.id}
-          coordinate={{ latitude: pin.latitude, longitude: pin.longitude }}
-          title={pin.label}
-          onPress={() => onPinPress?.(pin.id)}
-          pinColor={pin.selected ? '#22C55E' : undefined}
-        />
-      ))}
-    </RNMapView>
+    <View style={[styles.container, style]}>
+      <RNMapView
+        style={StyleSheet.absoluteFillObject}
+        initialRegion={{
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: delta,
+          longitudeDelta: delta,
+        }}
+        showsUserLocation
+        showsMyLocationButton
+      >
+        {pins.map((pin) => (
+          <Marker
+            key={pin.id}
+            coordinate={{ latitude: pin.latitude, longitude: pin.longitude }}
+            title={pin.label}
+            onPress={() => onPinPress?.(pin.id)}
+            pinColor={pin.selected ? '#22C55E' : 'red'}
+          />
+        ))}
+      </RNMapView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
