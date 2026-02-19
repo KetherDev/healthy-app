@@ -10,6 +10,7 @@ A wellness marketplace app built with React Native Expo (SDK 54) and Supabase ba
 - **Auth**: Supabase Auth with expo-secure-store for session persistence
 - **Styling**: React Native StyleSheet with custom design tokens
 - **Date Handling**: date-fns
+- **Maps**: Leaflet + OpenStreetMap (web), react-native-maps (mobile, bundled in Expo Go)
 
 ## Project Structure
 ```
