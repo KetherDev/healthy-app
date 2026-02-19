@@ -1,0 +1,58 @@
+Prompt to paste in your other Expo project:
+
+Build a wellness marketplace app called "Healthy" using React Native Expo with expo-router and Supabase as the backend. Connect to the existing Supabase project at URL https://eoyqjiehqjullmuopcbc.supabase.co. You'll need to set these environment variables:
+
+EXPO_PUBLIC_SUPABASE_URL = https://eoyqjiehqjullmuopcbc.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY = (use the same anon key from secrets)
+Install these dependencies: @supabase/supabase-js, expo-router, expo-secure-store, expo-status-bar, @expo/vector-icons, react-native-safe-area-context, react-native-screens, react-native-gesture-handler, date-fns
+
+Design system:
+
+Primary color: #4CAF7D (soft green), primaryLight: #E8F5EE, primaryDark: #3A8F64
+Background: #FAFBFC, Surface: #FFFFFF, Text: #1A1D21
+iOS-style rounded aesthetics with clean typography
+Tab bar with icons only, no labels
+Database tables already exist in Supabase with RLS enabled:
+
+profiles (id, full_name, username, avatar_url, created_at) - auto-created via trigger on auth.users
+establishments (id, name, type enum [gym/yoga/pilates/restaurant/meditation/crossfit], description, image_url, address, city, latitude, longitude, rating, review_count, amenities text[], price_range, featured boolean, created_at)
+classes (id, establishment_id FK, name, description, instructor, instructor_image, duration int, price int in cents, max_spots, level, scheduled_at timestamp, created_at)
+bookings (id, user_id FK to auth.users, class_id FK, status [confirmed/cancelled/completed], total_paid int, created_at)
+favorites (id, user_id FK, establishment_id FK, unique constraint on user+establishment, created_at)
+There are 8 establishments and 25+ classes already seeded.
+
+App structure with expo-router file-based routing:
+
+app/_layout.tsx - Root layout with AuthProvider wrapping Stack navigator. Screens: index, (tabs), auth, establishment/[id] (card presentation), booking/[classId] (modal presentation). On native, just render normally with SafeAreaView.
+
+app/index.tsx - Entry point that checks auth session and redirects to /auth or /(tabs)/home.
+
+app/auth.tsx - Login/register screen with email/password. Has logo (🌿 emoji), toggle between sign in and sign up, full name field for registration.
+
+app/(tabs)/_layout.tsx - Bottom tab navigator with 4 tabs (icon-only, no labels): Discover (compass-outline), Search (search-outline), Bookings (calendar-outline), Profile (person-outline). Active tint: #4CAF7D.
+
+app/(tabs)/home.tsx - Discovery screen with greeting "Hello, {firstName}", "Find your wellness" heading, horizontal scrollable category pills (Yoga 🧘, Gym 💪, Pilates 🤸, Food 🥗, Meditate 🧠, CrossFit 🏋️) that link to search with type filter, horizontally scrolling featured establishment cards with image overlay, and vertical list of nearby establishments with thumbnail, name, rating, address.
+
+app/(tabs)/search.tsx - Search screen with text input, filter pills (All/Yoga/Gym/Pilates/Food/Meditate/CrossFit) using flexWrap, and result cards with image, name, description, rating, price.
+
+app/(tabs)/bookings.tsx - Shows user's bookings split into Upcoming (confirmed) and Past (cancelled/completed). Each booking card shows class name, establishment name/image, date/time, status badge, and cancel button for confirmed ones.
+
+app/(tabs)/profile.tsx - Profile screen with avatar initial, name, email, stats (upcoming/completed/total bookings), menu sections (Account, Preferences, Support), sign out button.
+
+app/establishment/[id].tsx - Detail screen with hero image, back/favorite buttons, establishment info (type, name, rating, reviews, price, address, description, amenities as tags), and list of available classes with name, instructor, price, date/time, duration, level badge. Tapping a class goes to booking.
+
+app/booking/[classId].tsx - Booking confirmation flow showing class name, instructor, description, location, date, time, duration, level, total price. Confirm button creates booking. Success screen with checkmark, booking details, and "View My Bookings" button.
+
+Lib files:
+
+lib/supabase.ts - Supabase client with expo-secure-store for native auth storage, autoRefreshToken, persistSession, detectSessionInUrl: false.
+lib/auth.tsx - AuthProvider context with session, user, profile state. Functions: signIn, signUp (with username from email), signOut, refreshProfile. Listens to onAuthStateChange.
+lib/types.ts - TypeScript types for Establishment, ClassSession, Booking, Profile, Favorite, EstablishmentType union.
+lib/theme.ts - Design tokens: colors, spacing (xs:4 to xxxl:32), radius (sm:8 to full:999), typography (h1-label), shadows with elevation.
+Hooks:
+
+hooks/useEstablishments.ts - useEstablishments(typeFilter?), useFeaturedEstablishments(), useEstablishment(id)
+hooks/useClasses.ts - useClasses(establishmentId) - filters to future dates
+hooks/useBookings.ts - useBookings() with createBooking(classId, totalPaid) and cancelBooking(bookingId)
+hooks/useFavorites.ts - useFavorites() with toggleFavorite(establishmentId) and isFavorite(id)
+All data comes from Supabase. No hardcoded data, no local images. Establishment images are Unsplash URLs stored in image_url column. Use SafeAreaView properly on native for safe area insets.

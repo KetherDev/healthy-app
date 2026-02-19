@@ -5,6 +5,10 @@ modules = ["nodejs-22"]
 channel = "stable-24_05"
 
 [[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
 localPort = 8081
 externalPort = 80
 
@@ -13,47 +17,74 @@ localPort = 8082
 externalPort = 3000
 
 [workflows]
-runButton = "Dev Server"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Dev Server"
 mode = "sequential"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN npx expo start"
+args = "PORT=5000 RCT_METRO_PORT=5000 EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN npx expo start --web --clear --port 5000"
+waitForPort = 5000
 
 [[workflows.workflow]]
-name = "EAS Init"
-mode = "sequential"
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas init"
+task = "workflow.run"
+args = "Dev Server"
 
 [[workflows.workflow]]
-name = "EAS Update"
-mode = "sequential"
+name = "Project"
+mode = "parallel"
+author = "agent"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas update --auto"
+task = "workflow.run"
+args = "Dev Server"
 
 [[workflows.workflow]]
-name = "EAS Publish Preview iOS"
-mode = "sequential"
+name = "Project"
+mode = "parallel"
+author = "agent"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas build --platform ios --profile preview"
+task = "workflow.run"
+args = "Dev Server"
 
 [[workflows.workflow]]
-name = "EAS Publish Preview Android"
-mode = "sequential"
+name = "Project"
+mode = "parallel"
+author = "agent"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx eas build --platform android --profile preview"
+task = "workflow.run"
+args = "Dev Server"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Dev Server"
 
 [agent]
 expertMode = true
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_SUPABASE_URL = "https://eoyqjiehqjullmuopcbc.supabase.co"
+EXPO_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVveXFqaWVocWp1bGxtdW9wY2JjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NTQzMTEsImV4cCI6MjA4NzAzMDMxMX0.jGJZ3KkLhDau3yhsGdnPAPDWNwhz4vdq196AO2LrCnA"
