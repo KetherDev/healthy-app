@@ -84,7 +84,8 @@ export default function ExploreScreen() {
       id: p.id,
       latitude: p.latitude!,
       longitude: p.longitude!,
-      label: `${p.price_range || '$'} ${p.name}`,
+      label: p.name,
+      category: p.type,
       selected: i === activeIndex,
     })),
     [placesWithCoords, activeIndex]

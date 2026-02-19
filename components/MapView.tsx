@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import RNMapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface MapPin {
   id: string;
   latitude: number;
   longitude: number;
   label: string;
-  icon?: string;
+  category?: string;
   selected?: boolean;
 }
 
@@ -18,6 +19,24 @@ interface MapViewProps {
   onPinPress?: (id: string) => void;
   style?: any;
 }
+
+const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  gym: 'barbell',
+  crossfit: 'barbell',
+  yoga: 'leaf',
+  pilates: 'body',
+  meditation: 'flower',
+  restaurant: 'restaurant',
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  gym: '#EF4444',
+  crossfit: '#F97316',
+  yoga: '#22C55E',
+  pilates: '#8B5CF6',
+  meditation: '#6366F1',
+  restaurant: '#F59E0B',
+};
 
 export default function NativeMapView({ pins, center, zoom = 13, onPinPress, style }: MapViewProps) {
   const mapRef = useRef<RNMapView>(null);
@@ -55,15 +74,32 @@ export default function NativeMapView({ pins, center, zoom = 13, onPinPress, sty
         showsMyLocationButton
         mapType="standard"
       >
-        {pins.map((pin) => (
-          <Marker
-            key={pin.id}
-            coordinate={{ latitude: pin.latitude, longitude: pin.longitude }}
-            title={pin.label}
-            onPress={() => onPinPress?.(pin.id)}
-            pinColor={pin.selected ? '#22C55E' : 'red'}
-          />
-        ))}
+        {pins.map((pin) => {
+          const color = CATEGORY_COLORS[pin.category || 'gym'] || '#64748B';
+          const iconName = CATEGORY_ICONS[pin.category || 'gym'] || 'location';
+          return (
+            <Marker
+              key={pin.id}
+              coordinate={{ latitude: pin.latitude, longitude: pin.longitude }}
+              title={pin.label}
+              onPress={() => onPinPress?.(pin.id)}
+            >
+              <View style={[
+                styles.pinContainer,
+                pin.selected && { borderColor: color, borderWidth: 2.5, transform: [{ scale: 1.15 }] },
+              ]}>
+                <View style={[styles.pinIconWrap, { backgroundColor: color + '18' }]}>
+                  <Ionicons name={iconName} size={14} color={color} />
+                </View>
+                <Text style={styles.pinLabel} numberOfLines={1}>{pin.label}</Text>
+              </View>
+              <View style={[
+                styles.pinArrow,
+                pin.selected && { borderTopColor: color },
+              ]} />
+            </Marker>
+          );
+        })}
       </RNMapView>
     </View>
   );
@@ -75,5 +111,46 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  pinContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  pinIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1a1a2e',
+    maxWidth: 80,
+  },
+  pinArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#fff',
+    alignSelf: 'center',
+    marginTop: -1,
   },
 });
