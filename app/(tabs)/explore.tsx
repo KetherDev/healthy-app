@@ -63,15 +63,6 @@ export default function ExploreScreen() {
 
   const selectedPlace = selectedPin ? results.find((p) => p.id === selectedPin) : null;
 
-  const typeIcon = (type: string): keyof typeof Ionicons.glyphMap => {
-    switch (type) {
-      case 'gym': case 'crossfit': return 'barbell-outline';
-      case 'yoga': case 'pilates': case 'meditation': return 'leaf-outline';
-      case 'restaurant': return 'restaurant-outline';
-      default: return 'location-outline';
-    }
-  };
-
   const mapPins = useMemo(() =>
     results
       .filter((p) => p.latitude && p.longitude)
