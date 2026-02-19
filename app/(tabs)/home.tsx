@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,10 +29,17 @@ const CATEGORIES: { id: EstablishmentType | 'all'; label: string; icon: keyof ty
 export default function HomeScreen() {
   const { profile, user } = useAuth();
   const [activeCategory, setActiveCategory] = useState<EstablishmentType | 'all'>('all');
-  const { establishments, loading: estLoading } = useEstablishments(activeCategory === 'all' ? null : activeCategory);
-  const { classes, loading: classesLoading } = useUpcomingClasses(3);
+  const { establishments, loading: estLoading, refetch: refetchEstablishments } = useEstablishments(activeCategory === 'all' ? null : activeCategory);
+  const { classes, loading: classesLoading, refetch: refetchClasses } = useUpcomingClasses(3);
   const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchEstablishments(), refetchClasses()]);
+    setRefreshing(false);
+  }, [refetchEstablishments, refetchClasses]);
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
   const initial = (profile?.full_name || user?.email || '?').substring(0, 2).toUpperCase();
@@ -45,7 +53,17 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
