@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +15,21 @@ import { format } from 'date-fns';
 import { useEstablishment } from '@/hooks/useEstablishments';
 import { useClasses } from '@/hooks/useClasses';
 import { useFavorites } from '@/hooks/useFavorites';
-import { colors, spacing, radius, typography, shadows } from '@/lib/theme';
+import { colors, spacing, radius, shadows } from '@/lib/theme';
+
+const AMENITY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'Free WiFi': 'wifi-outline',
+  'WiFi': 'wifi-outline',
+  'Parking': 'car-outline',
+  'Showers': 'water-outline',
+  'Shower Facilities': 'water-outline',
+  'Lockers': 'people-outline',
+  'Locker Room': 'people-outline',
+  'Sauna': 'flame-outline',
+  'Towel Service': 'shirt-outline',
+  'Mat Rental': 'fitness-outline',
+  default: 'checkmark-circle-outline',
+};
 
 export default function EstablishmentDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,144 +37,241 @@ export default function EstablishmentDetail() {
   const { classes, loading: classesLoading } = useClasses(id!);
   const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'classes' | 'info' | 'reviews'>('classes');
 
   if (loading || !establishment) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   const favorited = isFavorite(establishment.id);
+  const lowestPrice = classes.length > 0 ? Math.min(...classes.map(c => c.price)) / 100 : null;
 
-  const typeLabels: Record<string, string> = {
-    gym: 'Gym',
-    yoga: 'Yoga Studio',
-    pilates: 'Pilates Studio',
-    restaurant: 'Restaurant',
-    meditation: 'Meditation Center',
-    crossfit: 'CrossFit Box',
-  };
-
-  const levelColors: Record<string, string> = {
-    beginner: colors.success,
-    intermediate: colors.warning,
-    advanced: colors.error,
-  };
+  const REVIEWS = [
+    { name: 'Maria G.', rating: 5, text: 'Amazing studio! The instructors are so welcoming and the space is beautiful.', time: '2 days ago' },
+    { name: 'David C.', rating: 4, text: 'Great classes, clean facility. Would love more evening slots though.', time: '1 week ago' },
+    { name: 'Emma W.', rating: 5, text: 'My favorite spot in the city. The atmosphere is perfect for wellness!', time: '2 weeks ago' },
+  ];
 
   return (
     <View style={styles.container}>
-      <Image source={{ uri: establishment.image_url || undefined }} style={styles.heroImage} />
+      <View style={styles.heroWrap}>
+        <Image source={{ uri: establishment.image_url || undefined }} style={styles.heroImage} />
+        <View style={styles.heroGradient} />
 
-      <SafeAreaView style={styles.topBar} edges={['top']}>
-        <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => toggleFavorite(establishment.id)}
-        >
-          <Ionicons
-            name={favorited ? 'heart' : 'heart-outline'}
-            size={24}
-            color={favorited ? colors.error : colors.text}
-          />
-        </TouchableOpacity>
-      </SafeAreaView>
+        <SafeAreaView style={styles.topBar} edges={['top']}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.topBarRight}>
+            <TouchableOpacity style={styles.iconButton}>
+              <Ionicons name="share-outline" size={16} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => toggleFavorite(establishment.id)}
+            >
+              <Ionicons
+                name={favorited ? 'heart' : 'heart-outline'}
+                size={16}
+                color={favorited ? colors.error : colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+
+        <View style={styles.imageDots}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={[styles.dot, i === 0 ? styles.dotActive : styles.dotInactive]} />
+          ))}
+        </View>
+      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.infoSection}>
-          <Text style={styles.type}>{typeLabels[establishment.type] || establishment.type}</Text>
-          <Text style={styles.name}>{establishment.name}</Text>
-
-          <View style={styles.metaRow}>
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={16} color="#FFD700" />
-              <Text style={styles.ratingText}>
-                {establishment.rating?.toFixed(1) || 'N/A'}
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.name}>{establishment.name}</Text>
+              <Text style={styles.typeLabel}>
+                {establishment.type.charAt(0).toUpperCase() + establishment.type.slice(1)} &middot; Wellness
               </Text>
-              <Text style={styles.reviewCount}>({establishment.review_count} reviews)</Text>
             </View>
-            {establishment.price_range && (
-              <Text style={styles.priceRange}>{establishment.price_range}</Text>
+            <View style={styles.openBadge}>
+              <Text style={styles.openBadgeText}>Open</Text>
+            </View>
+          </View>
+
+          <View style={styles.ratingLocationRow}>
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Ionicons
+                  key={s}
+                  name="star"
+                  size={16}
+                  color={s <= Math.floor(establishment.rating || 0) ? colors.warning : colors.border}
+                />
+              ))}
+              <Text style={styles.ratingNumber}>{establishment.rating?.toFixed(1)}</Text>
+              <Text style={styles.reviewCountText}>({establishment.review_count})</Text>
+            </View>
+            {establishment.city && (
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={14} color={colors.textTertiary} />
+                <Text style={styles.locationText}>{establishment.city}</Text>
+              </View>
             )}
           </View>
 
-          {establishment.address && (
-            <View style={styles.addressRow}>
-              <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-              <Text style={styles.addressText}>{establishment.address}</Text>
+          <View style={styles.quickInfoRow}>
+            {[
+              { icon: 'time-outline' as const, label: '6AM - 10PM' },
+              { icon: 'people-outline' as const, label: `${establishment.review_count} members` },
+              { icon: 'location-outline' as const, label: establishment.city || 'Downtown' },
+            ].map((item, i) => (
+              <View key={i} style={styles.quickInfoItem}>
+                <Ionicons name={item.icon} size={14} color={colors.primary} />
+                <Text style={styles.quickInfoText}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.tabBar}>
+          {(['classes', 'info', 'reviews'] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.tabContent}>
+          {activeTab === 'classes' && (
+            <View style={styles.classesTab}>
+              {classesLoading ? (
+                <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+              ) : classes.length === 0 ? (
+                <Text style={styles.noClasses}>No upcoming classes</Text>
+              ) : (
+                classes.map((cls) => (
+                  <TouchableOpacity
+                    key={cls.id}
+                    style={styles.classCard}
+                    onPress={() => router.push(`/booking/${cls.id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.classIconBox}>
+                      <Ionicons name="time-outline" size={16} color={colors.primary} />
+                    </View>
+                    <View style={styles.classInfo}>
+                      <Text style={styles.className}>{cls.name}</Text>
+                      <Text style={styles.classMeta}>
+                        {cls.instructor} &middot; {format(new Date(cls.scheduled_at), 'h:mm a')} &middot; {cls.duration} min
+                      </Text>
+                    </View>
+                    <View style={styles.classRight}>
+                      <Text style={styles.classPrice}>${(cls.price / 100).toFixed(0)}</Text>
+                      {cls.max_spots && (
+                        <Text style={[styles.classSpots, cls.max_spots <= 5 && { color: colors.error }]}>
+                          {cls.max_spots} spots
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
           )}
 
-          {establishment.description && (
-            <Text style={styles.description}>{establishment.description}</Text>
+          {activeTab === 'info' && (
+            <View style={styles.infoTab}>
+              <Text style={styles.aboutTitle}>About</Text>
+              <Text style={styles.aboutText}>
+                {establishment.description || 'A wonderful wellness establishment offering a variety of classes and services designed to strengthen body and calm mind.'}
+              </Text>
+
+              {establishment.amenities && establishment.amenities.length > 0 && (
+                <>
+                  <Text style={[styles.aboutTitle, { marginTop: 20 }]}>Amenities</Text>
+                  <View style={styles.amenitiesGrid}>
+                    {establishment.amenities.map((a) => (
+                      <View key={a} style={styles.amenityChip}>
+                        <Ionicons
+                          name={AMENITY_ICONS[a] || AMENITY_ICONS.default}
+                          size={14}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.amenityText}>{a}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
           )}
 
-          {establishment.amenities && establishment.amenities.length > 0 && (
-            <View style={styles.amenitiesWrap}>
-              {establishment.amenities.map((amenity) => (
-                <View key={amenity} style={styles.amenityTag}>
-                  <Text style={styles.amenityText}>{amenity}</Text>
+          {activeTab === 'reviews' && (
+            <View style={styles.reviewsTab}>
+              {REVIEWS.map((review, i) => (
+                <View key={i} style={[styles.reviewCard, i < REVIEWS.length - 1 && styles.reviewBorder]}>
+                  <View style={styles.reviewHeader}>
+                    <View style={styles.reviewAvatar}>
+                      <Text style={styles.reviewAvatarText}>{review.name.charAt(0)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reviewName}>{review.name}</Text>
+                      <View style={styles.reviewStarsRow}>
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Ionicons
+                            key={s}
+                            name="star"
+                            size={12}
+                            color={s <= review.rating ? colors.warning : colors.border}
+                          />
+                        ))}
+                        <Text style={styles.reviewTime}>{review.time}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewText}>{review.text}</Text>
                 </View>
               ))}
             </View>
           )}
         </View>
 
-        <View style={styles.classesSection}>
-          <Text style={styles.classesTitle}>Available Classes</Text>
-          {classesLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
-          ) : classes.length === 0 ? (
-            <Text style={styles.noClasses}>No upcoming classes</Text>
-          ) : (
-            classes.map((cls) => (
-              <TouchableOpacity
-                key={cls.id}
-                style={styles.classCard}
-                onPress={() => router.push(`/booking/${cls.id}`)}
-              >
-                <View style={styles.classHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.className}>{cls.name}</Text>
-                    {cls.instructor && (
-                      <Text style={styles.instructor}>with {cls.instructor}</Text>
-                    )}
-                  </View>
-                  <Text style={styles.classPrice}>
-                    ${(cls.price / 100).toFixed(0)}
-                  </Text>
-                </View>
-                <View style={styles.classMeta}>
-                  <Text style={styles.classDate}>
-                    {format(new Date(cls.scheduled_at), 'MMM d · h:mm a')}
-                  </Text>
-                  <Text style={styles.classDuration}>{cls.duration} min</Text>
-                  {cls.level && (
-                    <View
-                      style={[
-                        styles.levelBadge,
-                        { backgroundColor: (levelColors[cls.level.toLowerCase()] || colors.primary) + '20' },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.levelText,
-                          { color: levelColors[cls.level.toLowerCase()] || colors.primary },
-                        ]}
-                      >
-                        {cls.level}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      <View style={styles.bottomCTA}>
+        <View>
+          <Text style={styles.ctaLabel}>Starting from</Text>
+          <Text style={styles.ctaPrice}>
+            ${lowestPrice?.toFixed(0) || '15'}
+            <Text style={styles.ctaPriceSuffix}>/class</Text>
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.ctaButton}
+          onPress={() => {
+            if (classes.length > 0) {
+              router.push(`/booking/${classes[0].id}`);
+            }
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.ctaButtonText}>Book a Class</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -175,10 +287,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
+  heroWrap: {
+    height: 220,
+    position: 'relative',
+  },
   heroImage: {
     width: '100%',
-    height: 280,
+    height: '100%',
     backgroundColor: colors.border,
+  },
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
   topBar: {
     position: 'absolute',
@@ -187,155 +311,322 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    gap: 8,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.sm,
+  },
+  imageDots: {
+    position: 'absolute',
+    bottom: 12,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: '#fff',
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   content: {
     flex: 1,
-    marginTop: -spacing.xl,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    backgroundColor: colors.background,
   },
   infoSection: {
-    padding: spacing.xl,
+    padding: 20,
   },
-  type: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  name: {
-    ...typography.h1,
-    marginTop: spacing.xs,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  reviewCount: {
-    ...typography.bodySmall,
-  },
-  priceRange: {
-    ...typography.label,
-    color: colors.primaryDark,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.md,
-  },
-  addressText: {
-    ...typography.bodySmall,
-    flex: 1,
-  },
-  description: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 24,
-    marginTop: spacing.lg,
-  },
-  amenitiesWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  amenityTag: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-  },
-  amenityText: {
-    ...typography.caption,
-    color: colors.primaryDark,
-    fontWeight: '500',
-  },
-  classesSection: {
-    padding: spacing.xl,
-    paddingTop: 0,
-    paddingBottom: spacing.xxxl * 2,
-  },
-  classesTitle: {
-    ...typography.h3,
-    marginBottom: spacing.md,
-  },
-  noClasses: {
-    ...typography.body,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    paddingVertical: spacing.xxl,
-  },
-  classCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  classHeader: {
+  titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  className: {
-    ...typography.label,
-    fontSize: 15,
+  name: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
   },
-  instructor: {
-    ...typography.caption,
+  typeLabel: {
+    fontSize: 13,
+    color: colors.textTertiary,
     marginTop: 2,
   },
-  classPrice: {
-    ...typography.h3,
-    color: colors.primary,
+  openBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primaryLight,
   },
-  classMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  classDate: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  classDuration: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  levelBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-  },
-  levelText: {
+  openBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+    color: colors.successDark,
+  },
+  ratingLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 12,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  ratingNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 4,
+  },
+  reviewCountText: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 12,
+    color: colors.textTertiary,
+  },
+  quickInfoRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  quickInfoItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  quickInfoText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    paddingHorizontal: 20,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabItemActive: {
+    borderBottomColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 13,
+    color: colors.textTertiary,
+  },
+  tabTextActive: {
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  tabContent: {
+    padding: 20,
+  },
+  classesTab: {
+    gap: 10,
+  },
+  classCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  classIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  classInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  className: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  classMeta: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  classRight: {
+    alignItems: 'flex-end',
+  },
+  classPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  classSpots: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.warning,
+    marginTop: 2,
+  },
+  noClasses: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  infoTab: {},
+  aboutTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  aboutText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  amenitiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  amenityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  amenityText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  reviewsTab: {},
+  reviewCard: {
+    paddingBottom: 16,
+    marginBottom: 16,
+  },
+  reviewBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reviewAvatarText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  reviewName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  reviewStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
+  reviewTime: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    marginLeft: 4,
+  },
+  reviewText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 19,
+    marginTop: 8,
+  },
+  bottomCTA: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  ctaLabel: {
+    fontSize: 11,
+    color: colors.textTertiary,
+  },
+  ctaPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  ctaPriceSuffix: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: colors.textTertiary,
+  },
+  ctaButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+  },
+  ctaButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

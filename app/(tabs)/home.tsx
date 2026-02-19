@@ -1,78 +1,148 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAuth } from '@/lib/auth';
-import { useEstablishments, useFeaturedEstablishments } from '@/hooks/useEstablishments';
-import { colors, spacing, radius, typography, shadows } from '@/lib/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/lib/auth';
+import { useEstablishments } from '@/hooks/useEstablishments';
+import { useUpcomingClasses } from '@/hooks/useAllClasses';
+import { useFavorites } from '@/hooks/useFavorites';
+import { colors, spacing, radius, shadows } from '@/lib/theme';
 import { EstablishmentType } from '@/lib/types';
 
-const categories: { label: string; emoji: string; type: EstablishmentType }[] = [
-  { label: 'Yoga', emoji: '🧘', type: 'yoga' },
-  { label: 'Gym', emoji: '💪', type: 'gym' },
-  { label: 'Pilates', emoji: '🤸', type: 'pilates' },
-  { label: 'Food', emoji: '🥗', type: 'restaurant' },
-  { label: 'Meditate', emoji: '🧠', type: 'meditation' },
-  { label: 'CrossFit', emoji: '🏋️', type: 'crossfit' },
+const CATEGORIES: { id: EstablishmentType | 'all'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'all', label: 'All', icon: 'sparkles' },
+  { id: 'gym', label: 'Gym', icon: 'barbell-outline' },
+  { id: 'yoga', label: 'Yoga', icon: 'leaf-outline' },
+  { id: 'restaurant', label: 'Food', icon: 'restaurant-outline' },
 ];
 
 export default function HomeScreen() {
-  const { profile } = useAuth();
-  const { establishments: featured, loading: featuredLoading } = useFeaturedEstablishments();
-  const { establishments: nearby, loading: nearbyLoading } = useEstablishments();
+  const { profile, user } = useAuth();
+  const [activeCategory, setActiveCategory] = useState<EstablishmentType | 'all'>('all');
+  const { establishments, loading: estLoading } = useEstablishments(activeCategory === 'all' ? null : activeCategory);
+  const { classes, loading: classesLoading } = useUpcomingClasses(3);
+  const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
+  const initial = (profile?.full_name || user?.email || '?').substring(0, 2).toUpperCase();
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, {firstName}</Text>
-          <Text style={styles.heading}>Find your wellness</Text>
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.name}>{firstName}</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.bellButton}>
+              <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
+              <View style={styles.bellDot} />
+            </TouchableOpacity>
+            <View style={styles.avatarSmall}>
+              <Text style={styles.avatarSmallText}>{initial}</Text>
+            </View>
+          </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesContainer}
+        <TouchableOpacity
+          style={styles.searchBar}
+          onPress={() => router.push('/(tabs)/explore')}
+          activeOpacity={0.7}
         >
-          {categories.map((cat) => (
+          <Ionicons name="search" size={20} color={colors.textTertiary} />
+          <Text style={styles.searchPlaceholder}>Search gyms, classes, restaurants...</Text>
+        </TouchableOpacity>
+
+        <View style={styles.categoriesRow}>
+          {CATEGORIES.map((cat) => (
             <TouchableOpacity
-              key={cat.type}
-              style={styles.categoryPill}
-              onPress={() => router.push({ pathname: '/(tabs)/search', params: { type: cat.type } })}
+              key={cat.id}
+              style={[styles.categoryPill, activeCategory === cat.id && styles.categoryPillActive]}
+              onPress={() => setActiveCategory(cat.id)}
             >
-              <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-              <Text style={styles.categoryLabel}>{cat.label}</Text>
+              <Ionicons
+                name={cat.icon}
+                size={16}
+                color={activeCategory === cat.id ? '#fff' : colors.textSecondary}
+              />
+              <Text style={[styles.categoryLabel, activeCategory === cat.id && styles.categoryLabelActive]}>
+                {cat.label}
+              </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Featured</Text>
-          {featuredLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Nearby Places</Text>
+            <TouchableOpacity
+              style={styles.seeAllButton}
+              onPress={() => router.push('/(tabs)/explore')}
+            >
+              <Text style={styles.seeAllText}>See all</Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          {estLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
           ) : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.featuredContainer}
+              contentContainerStyle={styles.placesScroll}
             >
-              {featured.map((est) => (
+              {establishments.slice(0, 4).map((place) => (
                 <TouchableOpacity
-                  key={est.id}
-                  style={styles.featuredCard}
-                  onPress={() => router.push(`/establishment/${est.id}`)}
+                  key={place.id}
+                  style={styles.placeCard}
+                  onPress={() => router.push(`/establishment/${place.id}`)}
+                  activeOpacity={0.8}
                 >
-                  <Image source={{ uri: est.image_url || undefined }} style={styles.featuredImage} />
-                  <View style={styles.featuredOverlay}>
-                    <Text style={styles.featuredName}>{est.name}</Text>
-                    <View style={styles.ratingRow}>
-                      <Ionicons name="star" size={14} color="#FFD700" />
-                      <Text style={styles.featuredRating}>
-                        {est.rating?.toFixed(1) || 'N/A'}
-                      </Text>
+                  <View style={styles.placeImageWrap}>
+                    <Image
+                      source={{ uri: place.image_url || undefined }}
+                      style={styles.placeImage}
+                    />
+                    <TouchableOpacity
+                      style={styles.heartButton}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(place.id);
+                      }}
+                    >
+                      <Ionicons
+                        name={isFavorite(place.id) ? 'heart' : 'heart-outline'}
+                        size={14}
+                        color={isFavorite(place.id) ? colors.error : colors.textTertiary}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.placeInfo}>
+                    <Text style={styles.placeName} numberOfLines={1}>{place.name}</Text>
+                    <View style={styles.placeMetaRow}>
+                      <Ionicons name="star" size={12} color={colors.warning} />
+                      <Text style={styles.placeRating}>{place.rating?.toFixed(1)}</Text>
+                      <Text style={styles.placeDot}>&middot;</Text>
+                      <Ionicons name="location-outline" size={12} color={colors.textTertiary} />
+                      <Text style={styles.placeDistance}>{place.city || 'Nearby'}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -82,30 +152,45 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nearby</Text>
-          {nearbyLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Today's Classes</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>View all</Text>
+            </TouchableOpacity>
+          </View>
+          {classesLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
           ) : (
-            nearby.map((est) => (
-              <TouchableOpacity
-                key={est.id}
-                style={styles.nearbyCard}
-                onPress={() => router.push(`/establishment/${est.id}`)}
-              >
-                <Image source={{ uri: est.image_url || undefined }} style={styles.nearbyImage} />
-                <View style={styles.nearbyInfo}>
-                  <Text style={styles.nearbyName} numberOfLines={1}>{est.name}</Text>
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.nearbyRating}>{est.rating?.toFixed(1) || 'N/A'}</Text>
-                    <Text style={styles.nearbyReviews}>({est.review_count})</Text>
+            <View style={styles.classesList}>
+              {classes.map((cls) => (
+                <TouchableOpacity
+                  key={cls.id}
+                  style={styles.classCard}
+                  onPress={() => router.push(`/booking/${cls.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.classIconBox}>
+                    <Ionicons name="time-outline" size={20} color={colors.primary} />
                   </View>
-                  <Text style={styles.nearbyAddress} numberOfLines={1}>{est.address}</Text>
-                </View>
-              </TouchableOpacity>
-            ))
+                  <View style={styles.classInfo}>
+                    <Text style={styles.className} numberOfLines={1}>{cls.name}</Text>
+                    <Text style={styles.classMeta}>
+                      {cls.instructor} &middot; {cls.duration} min
+                    </Text>
+                  </View>
+                  <View style={styles.classRight}>
+                    <Text style={styles.classPrice}>${(cls.price / 100).toFixed(0)}</Text>
+                    {cls.max_spots && (
+                      <Text style={styles.classSpots}>{cls.max_spots} spots</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
           )}
         </View>
+
+        <View style={{ height: 24 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -116,125 +201,231 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingBottom: spacing.xxxl,
-  },
   header: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   greeting: {
-    ...typography.body,
-    color: colors.textSecondary,
+    fontSize: 12,
+    color: colors.textTertiary,
   },
-  heading: {
-    ...typography.h1,
-    marginTop: spacing.xs,
+  name: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
   },
-  categoriesContainer: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.muted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
+  },
+  avatarSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+  },
+  avatarSmallText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.muted,
+    marginBottom: 16,
+  },
+  searchPlaceholder: {
+    fontSize: 13,
+    color: colors.textTertiary,
+  },
+  categoriesRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 8,
+    marginBottom: 20,
   },
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    gap: spacing.xs,
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: colors.muted,
   },
-  categoryEmoji: {
-    fontSize: 16,
+  categoryPillActive: {
+    backgroundColor: colors.primary,
   },
   categoryLabel: {
-    ...typography.label,
-    color: colors.primaryDark,
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  categoryLabelActive: {
+    color: '#fff',
   },
   section: {
-    marginTop: spacing.xxl,
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   sectionTitle: {
-    ...typography.h3,
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
   },
-  featuredContainer: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
-  featuredCard: {
-    width: 260,
-    height: 160,
-    borderRadius: radius.lg,
+  seeAllText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  placesScroll: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  placeCard: {
+    width: 156,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
-    ...shadows.md,
   },
-  featuredImage: {
+  placeImageWrap: {
+    height: 100,
+    position: 'relative',
+  },
+  placeImage: {
     width: '100%',
     height: '100%',
     backgroundColor: colors.border,
   },
-  featuredOverlay: {
+  heartButton: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  featuredName: {
-    color: '#fff',
-    fontSize: 16,
+  placeInfo: {
+    padding: 12,
+  },
+  placeName: {
+    fontSize: 13,
     fontWeight: '600',
+    color: colors.text,
   },
-  ratingRow: {
+  placeMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2,
+    marginTop: 4,
   },
-  featuredRating: {
-    color: '#fff',
-    fontSize: 13,
+  placeRating: {
+    fontSize: 11,
     fontWeight: '500',
-  },
-  nearbyCard: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-    ...shadows.sm,
-  },
-  nearbyImage: {
-    width: 80,
-    height: 80,
-    backgroundColor: colors.border,
-  },
-  nearbyInfo: {
-    flex: 1,
-    padding: spacing.md,
-    justifyContent: 'center',
-  },
-  nearbyName: {
-    ...typography.label,
-    fontSize: 15,
-  },
-  nearbyRating: {
-    fontSize: 12,
     color: colors.text,
-    fontWeight: '500',
   },
-  nearbyReviews: {
-    fontSize: 12,
+  placeDot: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  placeDistance: {
+    fontSize: 11,
     color: colors.textTertiary,
   },
-  nearbyAddress: {
-    ...typography.caption,
+  classesList: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  classCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
+  },
+  classIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  classInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  className: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  classMeta: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    marginTop: 2,
+  },
+  classRight: {
+    alignItems: 'flex-end',
+  },
+  classPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  classSpots: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: colors.warning,
     marginTop: 2,
   },
 });

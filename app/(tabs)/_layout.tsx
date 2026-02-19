@@ -9,45 +9,54 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '500',
+        },
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 0.5,
+          borderTopColor: colors.borderLight,
+          borderTopWidth: 1,
           height: 85,
           paddingTop: 8,
+          paddingBottom: 28,
         },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <Ionicons name="home-outline" size={22} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="explore"
         options={{
+          title: 'Explore',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search-outline" size={size} color={color} />
+            <Ionicons name="compass-outline" size={22} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="bookings"
         options={{
+          title: 'Bookings',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+            <Ionicons name="calendar-outline" size={22} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Ionicons name="person-outline" size={22} color={color} />
           ),
         }}
       />

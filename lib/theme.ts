@@ -1,16 +1,25 @@
 export const colors = {
-  primary: '#4CAF7D',
-  primaryLight: '#E8F5EE',
-  primaryDark: '#3A8F64',
-  background: '#FAFBFC',
+  primary: '#22C55E',
+  primaryLight: '#F0FDF4',
+  primaryDark: '#16A34A',
+  primaryBorder: '#DCFCE7',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
-  text: '#1A1D21',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-  border: '#E5E7EB',
+  surfaceSecondary: '#F8FAFC',
+  muted: '#F1F5F9',
+  text: '#1a1a2e',
+  textSecondary: '#64748B',
+  textTertiary: '#94A3B8',
+  textMuted: '#CBD5E1',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
   error: '#EF4444',
-  success: '#10B981',
+  errorLight: '#FEF2F2',
+  errorDark: '#DC2626',
+  success: '#22C55E',
+  successDark: '#15803D',
   warning: '#F59E0B',
+  info: '#3B82F6',
   overlay: 'rgba(0,0,0,0.5)',
 };
 
@@ -33,13 +42,15 @@ export const radius = {
 };
 
 export const typography = {
-  h1: { fontSize: 28, fontWeight: '700' as const, color: colors.text },
-  h2: { fontSize: 22, fontWeight: '700' as const, color: colors.text },
+  h1: { fontSize: 24, fontWeight: '700' as const, color: colors.text },
+  h2: { fontSize: 20, fontWeight: '700' as const, color: colors.text },
   h3: { fontSize: 18, fontWeight: '600' as const, color: colors.text },
-  body: { fontSize: 16, fontWeight: '400' as const, color: colors.text },
-  bodySmall: { fontSize: 14, fontWeight: '400' as const, color: colors.textSecondary },
+  body: { fontSize: 14, fontWeight: '400' as const, color: colors.text },
+  bodySmall: { fontSize: 13, fontWeight: '400' as const, color: colors.textSecondary },
   caption: { fontSize: 12, fontWeight: '400' as const, color: colors.textTertiary },
+  captionSmall: { fontSize: 11, fontWeight: '400' as const, color: colors.textTertiary },
   label: { fontSize: 14, fontWeight: '600' as const, color: colors.text },
+  labelSmall: { fontSize: 12, fontWeight: '500' as const, color: colors.textSecondary },
 };
 
 export const shadows = {
@@ -60,8 +71,8 @@ export const shadows = {
   lg: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
     elevation: 4,
   },
 };

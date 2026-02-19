@@ -1,73 +1,61 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useBookings } from '@/hooks/useBookings';
-import { colors, spacing, radius, typography, shadows } from '@/lib/theme';
+import { colors, shadows } from '@/lib/theme';
+
+const MENU_ITEMS: { icon: keyof typeof Ionicons.glyphMap; label: string; badge?: string }[] = [
+  { icon: 'heart-outline', label: 'Favorites' },
+  { icon: 'card-outline', label: 'Payment Methods' },
+  { icon: 'notifications-outline', label: 'Notifications', badge: '3' },
+  { icon: 'settings-outline', label: 'Preferences' },
+  { icon: 'help-circle-outline', label: 'Help & Support' },
+  { icon: 'information-circle-outline', label: 'About' },
+];
 
 export default function ProfileScreen() {
-  const { user, profile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const { bookings } = useBookings();
-  const [showConfirm, setShowConfirm] = useState(false);
 
-  const upcoming = bookings.filter((b) => b.status === 'confirmed').length;
+  const fullName = profile?.full_name || 'User';
+  const email = user?.email || '';
+  const initial = fullName.substring(0, 2).toUpperCase();
+
+  const confirmed = bookings.filter((b) => b.status === 'confirmed').length;
   const completed = bookings.filter((b) => b.status === 'completed').length;
-  const total = bookings.length;
-
-  const initial = (profile?.full_name || user?.email || '?')[0].toUpperCase();
+  const cancelled = bookings.filter((b) => b.status === 'cancelled').length;
 
   const handleSignOut = () => {
-    if (showConfirm) {
-      signOut();
-    } else {
-      setShowConfirm(true);
-    }
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    ]);
   };
-
-  const menuSections = [
-    {
-      title: 'Account',
-      items: [
-        { icon: 'person-outline' as const, label: 'Edit Profile' },
-        { icon: 'notifications-outline' as const, label: 'Notifications' },
-        { icon: 'card-outline' as const, label: 'Payment Methods' },
-      ],
-    },
-    {
-      title: 'Preferences',
-      items: [
-        { icon: 'location-outline' as const, label: 'Location' },
-        { icon: 'language-outline' as const, label: 'Language' },
-      ],
-    },
-    {
-      title: 'Support',
-      items: [
-        { icon: 'help-circle-outline' as const, label: 'Help Center' },
-        { icon: 'chatbubble-outline' as const, label: 'Contact Us' },
-        { icon: 'document-text-outline' as const, label: 'Terms of Service' },
-      ],
-    },
-  ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Profile</Text>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Profile</Text>
+      </View>
 
-        <View style={styles.profileSection}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.profileCard}>
+          <View style={styles.avatarLarge}>
+            <Text style={styles.avatarLargeText}>{initial}</Text>
           </View>
-          <Text style={styles.name}>{profile?.full_name || 'User'}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
+          <Text style={styles.profileName}>{fullName}</Text>
+          <Text style={styles.profileEmail}>{email}</Text>
+          <TouchableOpacity style={styles.editButton}>
+            <Ionicons name="create-outline" size={14} color={colors.primary} />
+            <Text style={styles.editButtonText}>Edit Profile</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{upcoming}</Text>
-            <Text style={styles.statLabel}>Upcoming</Text>
+            <Text style={styles.statNumber}>{confirmed + completed}</Text>
+            <Text style={styles.statLabel}>Booked</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
@@ -76,45 +64,36 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{total}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+            <Text style={styles.statNumber}>{cancelled}</Text>
+            <Text style={styles.statLabel}>Cancelled</Text>
           </View>
         </View>
 
-        {menuSections.map((section) => (
-          <View key={section.title} style={styles.menuSection}>
-            <Text style={styles.menuSectionTitle}>{section.title}</Text>
-            <View style={styles.menuCard}>
-              {section.items.map((item, index) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.menuItem,
-                    index < section.items.length - 1 && styles.menuItemBorder,
-                  ]}
-                >
-                  <Ionicons name={item.icon} size={22} color={colors.textSecondary} />
-                  <Text style={styles.menuItemLabel}>{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
+        <View style={styles.menuSection}>
+          {MENU_ITEMS.map((item, i) => (
+            <TouchableOpacity key={i} style={styles.menuItem}>
+              <View style={styles.menuIconBox}>
+                <Ionicons name={item.icon} size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.menuLabel}>{item.label}</Text>
+              <View style={styles.menuRight}>
+                {item.badge && (
+                  <View style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>{item.badge}</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>
-            {showConfirm ? 'Tap again to confirm' : 'Sign Out'}
-          </Text>
+          <Ionicons name="log-out-outline" size={16} color={colors.error} />
+          <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
-        {showConfirm && (
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowConfirm(false)}
-          >
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        )}
+
+        <Text style={styles.versionText}>Healthy v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -125,113 +104,163 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxxl * 2,
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  title: {
-    ...typography.h1,
-    marginBottom: spacing.xxl,
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
   },
-  profileSection: {
+  content: {
+    paddingBottom: 32,
+  },
+  profileCard: {
     alignItems: 'center',
-    marginBottom: spacing.xxl,
+    paddingVertical: 24,
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryLight,
+  avatarLarge: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 12,
   },
-  avatarText: {
-    fontSize: 32,
+  avatarLargeText: {
+    fontSize: 22,
     fontWeight: '700',
+    color: '#fff',
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  profileEmail: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  editButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
     color: colors.primary,
-  },
-  name: {
-    ...typography.h3,
-  },
-  email: {
-    ...typography.bodySmall,
-    marginTop: spacing.xs,
   },
   statsRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.lg,
-    marginBottom: spacing.xxl,
-    ...shadows.sm,
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    marginBottom: 24,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
   },
   statNumber: {
-    ...typography.h2,
-    color: colors.primary,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
   },
   statLabel: {
-    ...typography.caption,
+    fontSize: 11,
+    color: '#94A3B8',
     marginTop: 2,
   },
   statDivider: {
     width: 1,
-    backgroundColor: colors.border,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
   },
   menuSection: {
-    marginBottom: spacing.xl,
-  },
-  menuSectionTitle: {
-    ...typography.caption,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-    paddingLeft: spacing.xs,
-  },
-  menuCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    ...shadows.sm,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.lg,
-    gap: spacing.md,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  menuItemBorder: {
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
+  menuIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F0FDF4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  menuItemLabel: {
-    ...typography.body,
+  menuLabel: {
     flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  menuRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  menuBadge: {
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 18,
+    alignItems: 'center',
+  },
+  menuBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#fff',
   },
   signOutButton: {
-    backgroundColor: colors.error + '10',
-    borderRadius: radius.md,
-    padding: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginTop: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
   },
   signOutText: {
-    color: colors.error,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  cancelText: {
-    color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
+    color: colors.error,
+  },
+  versionText: {
+    fontSize: 10,
+    color: '#CBD5E1',
+    textAlign: 'center',
+    marginTop: 16,
   },
 });
