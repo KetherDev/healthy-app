@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { colors } from '@/lib/theme';
+import * as Font from 'expo-font';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
@@ -25,6 +27,31 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [fontsReady, setFontsReady] = useState(false);
+
+  useEffect(() => {
+    async function loadFonts() {
+      try {
+        await Font.loadAsync({
+          'ionicons': require('../assets/fonts/Ionicons.ttf'),
+        });
+      } catch (e) {
+        console.warn('Font loading error:', e);
+      } finally {
+        setFontsReady(true);
+      }
+    }
+    loadFonts();
+  }, []);
+
+  if (!fontsReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <AuthProvider>
       <AuthGate>
