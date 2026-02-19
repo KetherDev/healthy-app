@@ -1,4 +1,5 @@
 import { View, StyleSheet, Text } from 'react-native';
+import RNMapView, { Marker } from 'react-native-maps';
 import { colors } from '@/lib/theme';
 
 interface MapPin {
@@ -18,26 +19,10 @@ interface MapViewProps {
   style?: any;
 }
 
-let RNMapView: any = null;
-let Marker: any = null;
-try {
-  const maps = require('react-native-maps');
-  RNMapView = maps.default;
-  Marker = maps.Marker;
-} catch (e) {}
-
 export default function NativeMapView({ pins, center, zoom = 13, onPinPress, style }: MapViewProps) {
   const lat = center?.latitude || 37.7749;
   const lng = center?.longitude || -122.4194;
   const delta = 0.05 * Math.pow(2, 13 - zoom);
-
-  if (!RNMapView) {
-    return (
-      <View style={[styles.fallback, style]}>
-        <Text style={styles.fallbackText}>Map not available</Text>
-      </View>
-    );
-  }
 
   return (
     <RNMapView
@@ -63,16 +48,3 @@ export default function NativeMapView({ pins, center, zoom = 13, onPinPress, sty
     </RNMapView>
   );
 }
-
-const styles = StyleSheet.create({
-  fallback: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#E8F0E8',
-  },
-  fallbackText: {
-    color: colors.textTertiary,
-    fontSize: 14,
-  },
-});
