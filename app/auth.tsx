@@ -7,7 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
@@ -22,26 +21,31 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async () => {
+    setErrorMsg('');
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      setErrorMsg('Please fill in all fields');
       return;
     }
     if (isSignUp && !fullName) {
-      Alert.alert('Error', 'Please enter your full name');
+      setErrorMsg('Please enter your full name');
       return;
     }
 
     setLoading(true);
-    const { error } = isSignUp
-      ? await signUp(email, password, fullName)
-      : await signIn(email, password);
-    setLoading(false);
-
-    if (error) {
-      Alert.alert('Error', error.message);
+    try {
+      const { error } = isSignUp
+        ? await signUp(email, password, fullName)
+        : await signIn(email, password);
+      if (error) {
+        setErrorMsg(error.message);
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Something went wrong');
     }
+    setLoading(false);
   };
 
   return (
@@ -61,6 +65,11 @@ export default function AuthScreen() {
           </View>
 
           <View style={styles.form}>
+            {errorMsg ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            ) : null}
             {isSignUp && (
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Full Name</Text>
@@ -201,5 +210,17 @@ const styles = StyleSheet.create({
   toggleText: {
     ...typography.bodySmall,
     color: colors.primary,
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+    textAlign: 'center' as const,
   },
 });
