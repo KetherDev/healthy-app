@@ -138,8 +138,10 @@ export default function WebMapView({ pins, center, zoom = 13, onPinPress, style 
 
   useEffect(() => {
     if (!mapInstanceRef.current || !center) return;
-    mapInstanceRef.current.setView([center.latitude, center.longitude], zoom, { animate: true });
-  }, [center?.latitude, center?.longitude, zoom]);
+    mapInstanceRef.current.flyTo([center.latitude, center.longitude], Math.max(zoom, 14), {
+      duration: 0.8,
+    });
+  }, [center?.latitude, center?.longitude]);
 
   return (
     <View style={[styles.container, style]}>
